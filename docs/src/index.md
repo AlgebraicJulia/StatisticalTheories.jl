@@ -1,7 +1,7 @@
-# AlgebraicTemplate.jl
+# StatisticalTheories.jl
 
 ```@meta
-CurrentModule = AlgebraicTemplate
+CurrentModule = StatisticalTheories
 ```
 
-`AlgebraicTemplate.jl` is a Julia library for...
+`StatisticalTheories.jl` is a Julia library for...
