@@ -1,7 +1,11 @@
 module MarkovCats
 using Catlab
 import Catlab.Theories:dom,codom,otimes,id,compose,munit,mcopy,delete,braid,mmerge
-export MarkovCats,FreeMarkovCategory,MarkovKernel,Stat,dom,codom,otimes,id,compose,munit,mcopy,delete,braid,mmerge,Ob,Hom
+export MarkovCats,FreeMarkovCategory,MarkovKernel,Stat,dom,codom,otimes,id,compose,munit,mcopy,delete,braid,mmerge,Ob,Hom,Space
+
+struct Space 
+   dim::Int
+end
 
 mutable struct MarkovKernel
    dom::Int
@@ -9,12 +13,14 @@ mutable struct MarkovKernel
 
    # syntax trees of param'd distributions
    # vector means they're in parallel
-   f::Union{Vector{MarkovKernel},Expr} 
+   f::Union{Vector{MarkovKernel},Expr,Symbol} 
 end
 
+se = Union{Symbol,Expr}
+
 function flatten!(k::MarkovKernel) 
-   if !isa(k.f,Expr)
-      k.f = reduce(vcat,map(flatten,k.f))
+   if !isa(k.f,se)
+      k.f = reduce(vcat,map(flatten!,k.f))
    end
    return k
 end
@@ -24,18 +30,18 @@ end
 So objects are finite dimensional vector spaces represented as ints and morphisms
 are 'Markov Kernels'
 """
-@instance ThMonoidalCategoryWithBidiagonals{Int,MarkovKernel} begin
+@instance ThMonoidalCategoryWithBidiagonals{Space,MarkovKernel} begin
    dom(f::MarkovKernel) = f.dom
    codom(f::MarkovKernel) = f.codom
-   id(A::Int) = MarkovKernel(A,A,Expr(:call,:Dirac))
-   
-   # question : do we want to support missing parameter values? turing does this...
+   id(A::Space) = MarkovKernel(A.dim,A.dim,:Dirac)
+
    function compose(f::MarkovKernel,g::MarkovKernel)
       f.codom!=g.dom &&  error("domain mismatch between $f and $g")
-      if isa(g.f,Expr)
-         out = Expr(:call,g.f,isa(f.f,Expr) ? f.f : a for a in f.f )
+      if isa(g.f,se)
+         out = Expr(:call,g.f)
+         isa(f.f,se) ? push!(out.args,f.f) : append!(out.args,f.f)
       else
-         isa(f.f,Expr) && error("domain mismatch: $f has one syntax tree, $g has more than one")
+         isa(f.f,se) && error("domain mismatch: $f has one syntax tree, $g has more than one")
          it = 1
          out = []
          for kernel in g.f
@@ -47,7 +53,7 @@ are 'Markov Kernels'
                   domcounter += f.f[it].codom
                   it+=1
                else
-                  error("domain mismatch or something... $f and $g don't compose well")
+                  error("domain mismatch or something... $f \nand \n$g don't compose well")
                end
             end
             push!(out,MarkovKernel(kernel.dom,kernel.codom,Expr(:call,kernel.f,ex...)))
@@ -57,18 +63,17 @@ are 'Markov Kernels'
       return MarkovKernel(f.dom,g.codom,out)
    end
 
-   otimes(A::MarkovKernel,B::MarkovKernel) = MarkovKernel(A.dom+B.dom,A.codom+B.codom,[flatten!(A);flatten!(B)])
-   otimes(A::Int,B::Int) = A+B
+   otimes(A::MarkovKernel,B::MarkovKernel) = flatten!(MarkovKernel(A.dom+B.dom,A.codom+B.codom,[A,B]))
+   otimes(A::Space,B::Space) = Space(A.dim+B.dim)
 
-   # stuff below here is sketch / dubious
-   munit(::Type{Int}) = 0
-   create(A::Int) = MarkovKernel(0,A,Expr(:call,()->A))
-   mcopy(A::Int) = MarkovKernel(A,2*A,[id(A),id(A)])
-   mmerge(A::Int) = MarkovKernel(2*A,A,Expr(:call,:+,A,A))
-   delete(A::Int) = MarkovKernel(A,0,Expr(:call,x->0))
+   munit(::Type{Space}) = Space(0)
+   create(A::Space) = MarkovKernel(0,A.dim,:create)
+   mcopy(A::Space) = MarkovKernel(A.dim,2*A.dim,[id(A),id(A)])
+   mmerge(A::Space) = MarkovKernel(2*A.dim,A.dim,:+)
+   delete(A::Space) = MarkovKernel(A.dim,0,:delete)
 
    # don't use this; it doesn't do anything... humans were not meant to braid syntax trees
-   braid(A::Int,B::Int) = MarkovKernel(A+B,A+B,id(otimes(A,B)))
+   braid(A::Space,B::Space) = MarkovKernel(A.dim+B.dim,A.dim+B.dim,id(otimes(A,B)))
 end
 
 
