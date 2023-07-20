@@ -18,9 +18,11 @@ end
 
 se = Union{Symbol,Expr}
 
+# this doesn't do what it is supposed to do.
+# what's wrong?
 function flatten!(k::MarkovKernel) 
    if !isa(k.f,se)
-      k.f = reduce(vcat,map(flatten!,k.f))
+      return reduce(vcat,map(flatten!,k.f))
    end
    return k
 end
@@ -36,12 +38,14 @@ are 'Markov Kernels'
    id(A::Space) = MarkovKernel(A.dim,A.dim,:Dirac)
 
    function compose(f::MarkovKernel,g::MarkovKernel)
+      print("composing $f \n and \n $g")
       f.codom!=g.dom &&  error("domain mismatch between $f and $g")
       if isa(g.f,se)
          out = Expr(:call,g.f)
          isa(f.f,se) ? push!(out.args,f.f) : append!(out.args,f.f)
       else
          isa(f.f,se) && error("domain mismatch: $f has one syntax tree, $g has more than one")
+         
          it = 1
          out = []
          for kernel in g.f
@@ -63,12 +67,17 @@ are 'Markov Kernels'
       return MarkovKernel(f.dom,g.codom,out)
    end
 
-   otimes(A::MarkovKernel,B::MarkovKernel) = flatten!(MarkovKernel(A.dom+B.dom,A.codom+B.codom,[A,B]))
+   otimes(A::MarkovKernel,B::MarkovKernel) = MarkovKernel(A.dom+B.dom,A.codom+B.codom,[flatten!(A);flatten!(B)])
    otimes(A::Space,B::Space) = Space(A.dim+B.dim)
 
    munit(::Type{Space}) = Space(0)
    create(A::Space) = MarkovKernel(0,A.dim,:create)
-   mcopy(A::Space) = MarkovKernel(A.dim,2*A.dim,[id(A),id(A)])
+
+   # this is messing with my head ... in general dimensions are conserved so copying actually
+   # completely messes up the way composition is calculated .....
+   # this sort of hack works when copying is the first thing we do
+   # but im pretty sure it doesn't jive with precomposition
+   mcopy(A::Space) = MarkovKernel(A.dim,2*A.dim,[MarkovKernel(0,A.dim,:Dirac),MarkovKernel(0,A.dim,:Dirac)])
    mmerge(A::Space) = MarkovKernel(2*A.dim,A.dim,:+)
    delete(A::Space) = MarkovKernel(A.dim,0,:delete)
 

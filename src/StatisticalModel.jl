@@ -32,14 +32,14 @@ gens = Dict(θ => two,
             normal => MarkovKernel(2,1,:Normal)
             )
 
-
-
 π₁,π₂,data,normal = map(to_wiring_diagram,[π₁,π₂,data,normal])
 d = compose(mcopy(to_wiring_diagram(θ)),compose(otimes(compose(π₁,data),π₂),normal))
-model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,d);generators=gens)
+# model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,d);generators=gens)
 
-# # I thnk this doesn't work because the functor is not strict monoidal
-# model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,expand(PlateDiagram(:D,d),2,true));generators=gens)
+# I think this doesn't work because the functor is not strict monoidal
+# like if you just apply the functor to the WD and then 
+# construct the plate diagram on the other side then it works fine? 
+model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,expand(PlateDiagram(:D,d),2,false));generators=gens)
 
 # # iid count on 2
 # ThStat = Presentation(FreeMarkovCategory)
