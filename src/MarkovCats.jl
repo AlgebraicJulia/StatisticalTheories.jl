@@ -30,6 +30,7 @@ end
 # this function "places" f inside of g
 # which is basically partial composition
 function place(g::MarkovKernel,f::MarkovKernel) 
+   print("g is $g \n\n f is $f \n\n")
    if isa(g.f,Symbol) return (true,MarkovKernel(g.dom,g.codom,Expr(g.codom.name,g.f,f)))
    elseif length(g.f.args)==1
       push!(g.f.args,f.f)
@@ -75,6 +76,7 @@ end
                   error("domain mismatch or something... $f \nand \n$g don't compose well")
                end
             end
+            print("placing $ex in $kernel\n\n\n")
             push!(out,foldl((x,y)->place(x,y)[2],append!([kernel],ex)))
          end
          out = map(x->convert(MarkovKernel,x),out)

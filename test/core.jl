@@ -5,7 +5,6 @@ using Test
 using Catlab.Theories
 using Catlab
 using Catlab.WiringDiagrams
-include("../src/toGen.jl")
 
 θ = MarkovCats.Ob(FreeMarkovCategory.Ob,:θ)
 X = MarkovCats.Ob(FreeMarkovCategory.Ob,:X)
@@ -35,7 +34,7 @@ gens = Dict(θ => theta,
             π₁ => MarkovKernel(theta,beta,:pi1),
             π₂ => MarkovKernel(theta,sigma,:pi2),
             data => MarkovKernel(beta,mu,:data),
-            normal => MarkovKernel(mu⊗sigma,ex,:Normal)
+            normal => MarkovKernel(mu⊗sigma,ex,:normal)
             )
 
 π₁,π₂,data,normal = map(to_wiring_diagram,[π₁,π₂,data,normal])
@@ -43,9 +42,10 @@ gens = Dict(θ => theta,
 d = compose(mcopy(to_wiring_diagram(θ)),compose(otimes(compose(π₁,data),π₂),normal))
 
 model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,d);generators=gens)
-@test ker2expr(model)==:($(Expr(:X, :Normal, :($(Expr(:mu, :data, :($(Expr(:beta, :pi1, :theta)))))), :($(Expr(:sigma, :pi2, :theta))))))
+ex = ParseToGen.ker2expr(model)
+@test ex==:($(Expr(:X, :normal, :($(Expr(:mu, :data, :($(Expr(:beta, :pi1, :theta)))))), :($(Expr(:sigma, :pi2, :theta))))))
 
-# model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,expand(PlateDiagram(:D,d),2,false));generators=gens)
+# model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,expand(PlateDiagram(:D,d),2,true));generators=gens)
 # # iid count on 2
 # theory = Presentation(FreeMarkovCategory)
 # P₀ = MarkovCats.Hom(:P0,θ,X)
