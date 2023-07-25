@@ -10,5 +10,5 @@ Gen = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
-Catlab = "^0.14"
+Catlab = "0.15"
 julia = "1.9"
