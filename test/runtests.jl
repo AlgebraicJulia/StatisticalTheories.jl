@@ -1,7 +1,7 @@
 using Test
 
-using StatisticalTheories
-
 @testset "Core" begin
   include("core.jl")
+  include("PlateDiagrams.jl")
 end
+

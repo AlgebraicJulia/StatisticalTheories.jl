@@ -1,11 +1,12 @@
 name = "StatisticalTheories"
 uuid = "a324afab-c284-4fe4-8b6d-fd3ed5a0fbfc"
 license = "MIT"
-authors = ["AlgebraicJulia Developer <email@algebraicjulia.org>"]
+authors = ["Harper Hults <hhhults@gmail.com>"]
 version = "0.0.1"
 
 [deps]
 Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
 Catlab = "^0.14"

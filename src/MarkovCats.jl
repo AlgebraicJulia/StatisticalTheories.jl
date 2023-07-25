@@ -1,6 +1,7 @@
 module MarkovCats
 using Catlab
-import Catlab.Theories:dom,codom,otimes,id,compose,munit,mcopy,delete,braid,mmerge,⊗
+using Catlab.Theories
+import Catlab.Theories:dom,codom,otimes,id,compose,munit,mcopy,delete,braid,mmerge,⊗,ThMonoidalCategoryWithBidiagonals
 export MarkovCats,FreeMarkovCategory,MarkovKernel,Stat,dom,codom,otimes,id,compose,munit,mcopy,delete,braid,mmerge,Ob,Hom,Space,⊗
 
 struct Space 
@@ -25,10 +26,28 @@ function flatten!(k::MarkovKernel)
    return k
 end
 
+# precondition: both are singleton trees
+# this function "places" f inside of g
+# which is basically partial composition
+function place(g::MarkovKernel,f::MarkovKernel) 
+   if isa(g.f,Symbol) return (true,MarkovKernel(g.dom,g.codom,Expr(g.codom.name,g.f,f)))
+   elseif length(g.f.args)==1
+      push!(g.f.args,f.f)
+      return (true,g)
+   else
+      for i=2:length(g.f.args)
+         ans = place(g.f.args[i],f)
+         if ans[1]
+            g.f.args[i]=ans[2]
+            return (true,g) 
+         end
+      end
+      return (false,nothing)
+   end
+end
+
 """The category of statistical semantics. In this case our semantics are 
-'make a syntax tree out of distributions for us to parse into a Turing model'.
-So objects are finite dimensional vector spaces represented as ints and morphisms
-are 'Markov Kernels'
+'make a syntax tree out of distributions for us to parse.'
 """
 @instance ThMonoidalCategoryWithBidiagonals{Space,MarkovKernel} begin
    dom(f::MarkovKernel) = f.dom
@@ -39,7 +58,7 @@ are 'Markov Kernels'
       f.codom.dim!=g.dom.dim &&  error("domain mismatch between $f and $g")
       if isa(g.f,se)
          out = Expr(g.codom.name,g.f)
-         isa(f.f,se) ? push!(out.args,Expr(f.codom.name,f.f)) : append!(out.args,f.f)
+         isa(f.f,se) ? push!(out.args,MarkovKernel(f.dom,f.codom,Expr(f.codom.name,f.f))) : append!(out.args,f.f)
       else
          isa(f.f,se) && error("domain mismatch: $f has one syntax tree, $g has more than one")
          it = 1
@@ -56,7 +75,7 @@ are 'Markov Kernels'
                   error("domain mismatch or something... $f \nand \n$g don't compose well")
                end
             end
-            push!(out,MarkovKernel(kernel.dom,kernel.codom,Expr(kernel.codom.name,kernel.f,ex...)))
+            push!(out,foldl((x,y)->place(x,y)[2],append!([kernel],ex)))
          end
          out = map(x->convert(MarkovKernel,x),out)
       end
@@ -78,7 +97,6 @@ are 'Markov Kernels'
    # don't use this
    braid(A::Space,B::Space) = MarkovKernel(A⊗B,A⊗B,id(otimes(A,B)))
 end
-
 
 @syntax FreeMarkovCategory{ObExpr,HomExpr} ThMonoidalCategoryWithBidiagonals begin
   otimes(A::Ob, B::Ob) = associate_unit(new(A,B), munit)

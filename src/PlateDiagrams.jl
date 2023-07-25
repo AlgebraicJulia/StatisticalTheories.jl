@@ -5,13 +5,12 @@
 #     
 module PlateDiagrams
 using Catlab
-using Catlab.WiringDiagrams
-using Catlab.DirectedWiringDiagrams
+using Catlab.WiringDiagrams.DirectedWiringDiagrams
+using Catlab.WiringDiagrams.MonoidalDirectedWiringDiagrams:implicit_mmerge
 using Catlab.Graphics
 import Catlab.Graphics: Graphviz
-include("/Users/harperhults/.julia/packages/Catlab/MWkgx/experiments/Markov/src/Markov.jl")
 using Catlab.Theories
-import Catlab.DirectedWiringDiagrams: input_ports,output_ports,box
+import Catlab.WiringDiagrams.DirectedWiringDiagrams: input_ports,output_ports,box
 export input_ports,output_ports,PlateDiagram,expand,to_graphviz
 
 struct PlateDiagram <: AbstractBox

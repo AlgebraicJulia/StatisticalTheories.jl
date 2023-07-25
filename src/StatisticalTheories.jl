@@ -2,6 +2,13 @@
 in Catlab. Allows for specification of theories and their models as well as integration with Turing.jl.
 """
 module StatisticalTheories
+include("PlateDiagrams.jl")
+include("MarkovCats.jl")
+include("toGen.jl")
 
-export PlateDiagrams, MarkovCats
+using Reexport
+
+@reexport using .MarkovCats
+@reexport using .PlateDiagrams
+
 end
