@@ -1,103 +1,114 @@
 module MarkovCats
 using Catlab
 using Catlab.Theories
-import Catlab.Theories:dom,codom,otimes,id,compose,munit,mcopy,delete,braid,mmerge,⊗,ThMonoidalCategoryWithBidiagonals
-export MarkovCats,FreeMarkovCategory,MarkovKernel,Stat,dom,codom,otimes,id,compose,munit,mcopy,delete,braid,mmerge,Ob,Hom,Space,⊗
+using Catlab.CategoricalAlgebra.StructuredCospans
+using ACSets
+import Catlab.BasicGraphs:vertices,nv,outneighbors
+export nv,vertices,outneighbors
+import Base.:+
+import Catlab.Theories:otimes,compose,dom,codom,id,mcopy
+export MarkovCats,FreeMarkovCategory,TermGraph,Open,OpenTermGraph,OpenTermGraphOb,Space,+,opentermgraph_edge,compose,otimes,dom,codom,id,mcopy
 
 struct Space 
    name::Symbol
    dim::Int
+   Space(n::Symbol,d::Int) = new(n,d)
 end
 
-mutable struct MarkovKernel
-   dom::Space
-   codom::Space
++(A::Space,B::Space) = Space(Symbol(A.name,:⊕,B.name),A.dim+B.dim)
 
-   # "syntax trees"
-   f::Union{Vector{MarkovKernel},Expr,Symbol} 
+
+@present SchTermGraph(FreeSchema) begin
+   Label::AttrType
+   Space::AttrType
+   Node::Ob
+   (Nullary,Unary,Binary)::Ob
+
+   nullOut::Hom(Nullary,Node)
+   unOut::Hom(Unary,Node)
+   binOut::Hom(Binary,Node)
+   unIn::Hom(Unary,Node)
+   (binIn₁,binIn₂)::Hom(Binary,Node)
+
+   nullLabel::Attr(Nullary,Label)
+   unLabel::Attr(Unary,Label)
+   binLabel::Attr(Binary,Label)
+   var::Attr(Node,Space)
 end
 
-se = Union{Symbol,Expr}
+@acset_type TermGraphUntyped(SchTermGraph)
 
-function flatten!(k::MarkovKernel) 
-   if !isa(k.f,se)
-      return reduce(vcat,map(flatten!,k.f))
-   end
-   return k
+nv(g::TermGraphUntyped{S,T}) where {S,T} = nparts(g,:Node)
+vertices(g::TermGraphUntyped{S,T}) where {S,T} = parts(g,:Node)
+function outneighbors(g::TermGraphUntyped{S,T},v::Int) where {S,T}
+   return unique(reduce(append!,[
+      subpart(g,incident(g,v,:binIn₂),:binOut),
+      subpart(g,incident(g,v,:binIn₁),:binOut),
+      subpart(g,incident(g,v,:unIn),:unOut)
+   ]))
 end
 
-# precondition: both are singleton trees
-# this function "places" f inside of g
-# which is basically partial composition
-function place(g::MarkovKernel,f::MarkovKernel) 
-   print("g is $g \n\n f is $f \n\n")
-   if isa(g.f,Symbol) return (true,MarkovKernel(g.dom,g.codom,Expr(g.codom.name,g.f,f)))
-   elseif length(g.f.args)==1
-      push!(g.f.args,f.f)
-      return (true,g)
+function inneighbors(g::TermGraphUntyped{S,T},v::Int) where {S,T}
+   outIncident = incident(g,v,:binOut)
+   return unique(reduce(append!,[
+      subpart(g,outIncident,:binIn₁),
+      subpart(g,outIncident,:binIn₂),
+      subpart(g,incident(g,v,:unOut),:unIn)
+   ]))
+end
+
+function get_initial(g::TermGraphUntyped{S,T}) where {S,T}
+   return filter(x->isempty(inneighbors(g,x))
+      && isempty(incident(g,x,:nullOut)),vertices(g))
+end
+
+function get_terminal(g::TermGraphUntyped{S,T}) where {S,T}
+   return filter(x->isempty(outneighbors(g,x)),vertices(g))
+end
+
+const OpenTermGraphUntypedOb,OpenTermGraphUntyped = OpenACSetTypes(TermGraphUntyped,:Node)
+const TermGraph = TermGraphUntyped{Tuple{Symbol,Type},Space}
+const OpenTermGraphOb,OpenTermGraph = OpenTermGraphUntypedOb{Tuple{Symbol,Type},Space},OpenTermGraphUntyped{Tuple{Symbol,Type},Space}
+Open(g::TermGraph) = OpenTermGraph(g,FinFunction(get_initial(g),nv(g)),FinFunction(get_terminal(g),nv(g)))
+function opentermgraph_edge(dom::Vector{Space},codom::Space,label::Symbol,type::Type)
+   arity = length(dom)
+   if arity>=2
+      pairs = (arity-1)*2
+      var = Vector{Space}(undef,1+pairs)
+      var[1] = dom[1]
+      var[2:2:end-1] = dom[2:end]
+      for i=3:2:(pairs-1)
+         var[i] = var[i-1]+var[i-2]
+      end
+      var[end] = codom
+      g = @acset TermGraph begin
+         Node = 1+pairs
+         Binary = arity-1
+         binIn₁ = [1:2:pairs...]
+         binIn₂ = [2:2:pairs...]
+         binOut = [3:2:(1+pairs)...]
+         binLabel = [fill((:Pair,Function),arity-2);(label,type)]
+         var = var
+      end
+   elseif arity==1
+      g = @acset TermGraph begin
+         Node = 2
+         Unary = 1
+         unIn = [1]
+         unOut = [2]
+         unLabel = [(label,type)]
+         var = [dom[1],codom]
+      end
    else
-      for i=2:length(g.f.args)
-         ans = place(g.f.args[i],f)
-         if ans[1]
-            g.f.args[i]=ans[2]
-            return (true,g) 
-         end
+      g = @acset TermGraph begin
+         Node = 1
+         Nullary = 1
+         nullOut = [1]
+         nullLabel = [(label,type)]
+         var = [codom]
       end
-      return (false,nothing)
    end
-end
-
-"""The category of statistical semantics. In this case our semantics are 
-'make a syntax tree out of distributions for us to parse.'
-"""
-@instance ThMonoidalCategoryWithBidiagonals{Space,MarkovKernel} begin
-   dom(f::MarkovKernel) = f.dom
-   codom(f::MarkovKernel) = f.codom
-   id(A::Space) = MarkovKernel(A,A,A.name)
-
-   function compose(f::MarkovKernel,g::MarkovKernel)
-      f.codom.dim!=g.dom.dim &&  error("domain mismatch between $f and $g")
-      if isa(g.f,se)
-         out = Expr(g.codom.name,g.f)
-         isa(f.f,se) ? push!(out.args,MarkovKernel(f.dom,f.codom,Expr(f.codom.name,f.f))) : append!(out.args,f.f)
-      else
-         isa(f.f,se) && error("domain mismatch: $f has one syntax tree, $g has more than one")
-         it = 1
-         out = []
-         for kernel in g.f
-            domcounter = 0
-            ex = []
-            while domcounter<kernel.dom.dim
-               if domcounter + f.f[it].codom.dim <= kernel.dom.dim
-                  push!(ex,f.f[it])
-                  domcounter += f.f[it].codom.dim
-                  it+=1
-               else
-                  error("domain mismatch or something... $f \nand \n$g don't compose well")
-               end
-            end
-            print("placing $ex in $kernel\n\n\n")
-            push!(out,foldl((x,y)->place(x,y)[2],append!([kernel],ex)))
-         end
-         out = map(x->convert(MarkovKernel,x),out)
-      end
-      return MarkovKernel(f.dom,g.codom,out)
-   end
-
-   otimes(A::MarkovKernel,B::MarkovKernel) = MarkovKernel(A.dom⊗B.dom,A.codom⊗B.codom,[flatten!(A);flatten!(B)])
-   otimes(A::Space,B::Space) = Space(Symbol(A.name,:⊗,B.name),A.dim+B.dim)
-
-   munit(::Type{Space}) = Space(:munit,0)
-   create(A::Space) = MarkovKernel(Space(:null,0),A,A.name)
-
-   # this is kind of a hack
-   mcopy(A::Space) = MarkovKernel(A,A⊗A,[MarkovKernel(Space(:null,0),A,A.name),MarkovKernel(Space(:null,0),A,A.name)])
-   
-   mmerge(A::Space) = MarkovKernel(A⊗A,A,:+)
-   delete(A::Space) = MarkovKernel(A,Space(:null,0),:delete)
-
-   # don't use this
-   braid(A::Space,B::Space) = MarkovKernel(A⊗B,A⊗B,id(otimes(A,B)))
+   return Open(g)
 end
 
 @syntax FreeMarkovCategory{ObExpr,HomExpr} ThMonoidalCategoryWithBidiagonals begin

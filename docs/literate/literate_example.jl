@@ -1,13 +1,5 @@
-# # Code Example
-#
-# This is an example of adding a code example compiled with Literate.jl in the docs.
-#
-# First we want to load our package with `using`
-
-using StatisticalTheories
-
-# ## Using `hello()`
-#
-# We provide the `hello(string)` method which prints "Hello, `string`!"
-
-hello("World")
+## This is documentation!
+# define a statistical theory as a wiring diagram in a Markov category
+# use opentermgraph_edge to assign edges and nodes to generators
+# create a functor from the theory defined on said generators
+# parse output of functor into Gen code!

@@ -5,6 +5,8 @@ using Test
 using Catlab.Theories
 using Catlab
 using Catlab.WiringDiagrams
+using Gen.Distributions
+using StatisticalTheories.MarkovCats
 
 θ = MarkovCats.Ob(FreeMarkovCategory.Ob,:θ)
 X = MarkovCats.Ob(FreeMarkovCategory.Ob,:X)
@@ -25,25 +27,47 @@ mu = Space(:mu,1)
 beta = Space(:beta,1)
 sigma = Space(:sigma,1)
 ex = Space(:X,1)
+pi1 = opentermgraph_edge([theta],beta,:pi1,Function)
+pi2 = opentermgraph_edge([theta],sigma,:pi2,Function)
+dta = opentermgraph_edge([beta],mu,:data,Function)
+norm = opentermgraph_edge([mu,sigma],ex,:normal,Distribution)
+# this could be something like opentermgraph_edge([theta],[beta],:π₁,Function)
 
-gens = Dict(θ => theta,
-            μ => mu,
-            β => beta,
-            σ => sigma,
-            X => ex,
-            π₁ => MarkovKernel(theta,beta,:pi1),
-            π₂ => MarkovKernel(theta,sigma,:pi2),
-            data => MarkovKernel(beta,mu,:data),
-            normal => MarkovKernel(mu⊗sigma,ex,:normal)
+gens = Dict(θ => dom(pi1),
+            μ => codom(dta),
+            β => dom(dta),
+            σ => codom(pi2),
+            X => codom(norm),
+            π₁ => pi1,
+            π₂ => pi2,
+            data => dta,
+            normal => norm
             )
 
 π₁,π₂,data,normal = map(to_wiring_diagram,[π₁,π₂,data,normal])
 # d = compose(mcopy(to_wiring_diagram(θ)),compose(otimes(compose(π₁,data),π₂)),normal)
 d = compose(mcopy(to_wiring_diagram(θ)),compose(otimes(compose(π₁,data),π₂),normal))
 
-model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,d);generators=gens)
-ex = ParseToGen.ker2expr(model)
-@test ex==:($(Expr(:X, :normal, :($(Expr(:mu, :data, :($(Expr(:beta, :pi1, :theta)))))), :($(Expr(:sigma, :pi2, :theta))))))
+model = functor((OpenTermGraphOb,OpenTermGraph),to_hom_expr(FreeMarkovCategory,d);generators=gens)
+
+g = Open(@acset TermGraph begin 
+   Node = 5
+   Unary = 3
+   Binary = 1
+   unIn = [1,1,2]
+   unOut = [2,3,4]
+   binOut = [5]
+   binIn₁ = [4]
+   binIn₂ = [3]
+   binLabel = [(:normal,Distribution)]
+   unLabel = [(:pi1,Function),(:pi2,Function),(:data,Function)]
+   var = [Space(:theta,2),Space(:beta,1),Space(:sigma,1),Space(:mu,1),Space(:X,1)]
+end)
+
+@test codom(model).ob[:var][1] == Space(:X,1)
+@test dom(model).ob[:var][1] == Space(:theta,2)
+# ex = ParseToGen.ker2expr(model)
+# @test ex==:($(Expr(:X, :normal, :($(Expr(:mu, :data, :($(Expr(:beta, :pi1, :theta)))))), :($(Expr(:sigma, :pi2, :theta))))))
 
 # model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,expand(PlateDiagram(:D,d),2,true));generators=gens)
 # # iid count on 2
