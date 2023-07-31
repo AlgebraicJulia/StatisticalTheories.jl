@@ -5,7 +5,7 @@ using Test
 using Catlab.Theories
 using Catlab
 using Catlab.WiringDiagrams
-using Gen.Distributions
+using Gen
 using StatisticalTheories.MarkovCats
 
 θ = MarkovCats.Ob(FreeMarkovCategory.Ob,:θ)
@@ -30,7 +30,7 @@ ex = Space(:X,1)
 pi1 = opentermgraph_edge([theta],beta,:pi1,Function)
 pi2 = opentermgraph_edge([theta],sigma,:pi2,Function)
 dta = opentermgraph_edge([beta],mu,:data,Function)
-norm = opentermgraph_edge([mu,sigma],ex,:normal,Distribution)
+norm = opentermgraph_edge([mu,sigma],ex,:normal,Gen.Distribution)
 # this could be something like opentermgraph_edge([theta],[beta],:π₁,Function)
 
 gens = Dict(θ => dom(pi1),
@@ -66,7 +66,6 @@ end)
 
 @test codom(model).ob[:var][1] == Space(:X,1)
 @test dom(model).ob[:var][1] == Space(:theta,2)
-# ex = ParseToGen.ker2expr(model)
 # @test ex==:($(Expr(:X, :normal, :($(Expr(:mu, :data, :($(Expr(:beta, :pi1, :theta)))))), :($(Expr(:sigma, :pi2, :theta))))))
 
 # model = functor((Space,MarkovKernel),to_hom_expr(FreeMarkovCategory,expand(PlateDiagram(:D,d),2,true));generators=gens)

@@ -1,71 +1,76 @@
 module ParseToGen
 using StatisticalTheories.MarkovCats
 using Gen
-export ker2expr,toGen
-
-# so the idea is that the markov kernel struct is necessary to ensure that composition is well defined
-# but once we put stuff together we need to get rid of them in order to have nice syntax trees
-
-# convert a kernel to an expression
-function ker2expr(m::MarkovKernel) 
-   if isa(m.f,Symbol) return m.f
-   elseif isa(m.f,Expr) return clean(m.f)
-   else return Expr(:par,map(ker2expr,m.f)...)
-   end
-end
-
-# clean an expression of all kernels
-function clean(e::Expr) 
-   return Expr(e.head,map(e.args) do x
-      if isa(x,Symbol) x
-      elseif isa(x,Expr) clean(x)
-      else ker2expr(x)
-      end
-      end...)
-end
-
-pi1(x) = x[1]
-pi2(x) = x[2]
-data(x) = x*2
+using Catlab.Graphs
+using ACSets.ACSetInterface
+export toGen
 
 # generate Gen.jl model code based on a syntax tree
 # this code will assume that variables in the domain of the tree are instantiated
-# somewhere we need to look up whether stuff is deterministic or not
 
-function to_lines(e::Expr)
-   if e.head==:par
-      return map(to_lines,e.args) # ?
+function get_args(g::TermGraph,edge::Int)
+   inc = incident(g,g[edge,:binIn₁],:binOut)
+   if !(:Pair in map(x->x[1],g[inc,:binLabel][:,1]))
+      return [g[edge,[:binIn₁,:var]].name,g[edge,[:binIn₂,:var]].name]
    else
-      out = []
-      args = []
-      for ex in e.args[2:end]
-         if isa(ex,Expr)
-            push!(out,to_lines(ex)...)
-            push!(args,ex.head)
-         else push!(args,ex)
-         end
-      end
-      args = join(map(String,args),",")
-      line = isa(eval(e.args[1]),Distribution) ?  "    $(e.head) = ({:$(e.head)} ~ $(e.args[1])($(args...)))" : "    $(e.head) = $(e.args[1])($(args...))"
-      
-      push!(out,line)
-      return out
+      return [map(x->get_args(g,x),inc)...; g[edge,[:binIn₂,:var]].name]
    end
 end
 
-function make_header(m::MarkovKernel,name)
-   return "using Gen\n@gen function $name($(m.dom.name))"
+function to_line(var::Int,og::OpenTermGraph)
+   out = []
+   g = og.cospan.apex
+   for edge in incident(g,var,:nullOut)
+      var = g[edge,[:nullOut,:var]].name
+      line = if g[edge,:nullLabel][2]==Gen.Distribution
+         "    $var = ({:$var} ~ $(g[edge,:nullLabel][1])())"
+      else
+         "    $var = $(g[edge,:nullLabel][1])()"
+      end
+      push!(out,line)
+   end
+   for edge in incident(g,var,:unOut)
+      var = g[edge,[:unOut,:var]].name
+      line = if g[edge,:unLabel][2]==Gen.Distribution
+         "    $var = ({:$var} ~ $(g[edge,:unLabel][1])($(g[edge,[:unIn,:var]].name)))"
+      else
+         "    $var = $(g[edge,:unLabel][1])($(g[edge,[:unIn,:var]].name))"
+      end
+      push!(out,line)
+   end
+   for edge in incident(g,var,:binOut)
+      g[edge,:binLabel][1]==:Pair&&continue
+      var = g[edge,[:binOut,:var]].name
+      args = join(map(String,get_args(g,edge)),",")
+      line = if g[edge,:binLabel][2]==Gen.Distribution
+         "    $var = ({:$var} ~ $(g[edge,:binLabel][1])($args))"
+      else
+         "    $var = $(g[edge,:binLabel][1])($args)"
+      end
+      push!(out,line)
+   end
+   return out
 end
 
-function make_footer(m::MarkovKernel)
-   return "    return $(m.codom.name)\nend"
+function to_lines(g::OpenTermGraph)
+   nondom = filter!(x->!(x in parts(dom(g).ob,:Node)),topological_sort(g.cospan.apex))
+   mainbody = reduce(append!,map(x->to_line(x,g),nondom))
 end
 
-function toGen(m::MarkovKernel,fname::String)
-   ex = ker2expr(m)
-   out = to_lines(ex)
-   insert!(out,1,make_header(m,fname))
-   push!(out,make_footer(m))
+function make_header(g::OpenTermGraph,name)
+   args = join(map(x->String(x.name),dom(g).ob[:var]),",")
+   return "using Gen\n@gen function $name($args)"
+end
+
+function make_footer(g::OpenTermGraph)
+   outs = join(map(x->String(x.name),codom(g).ob[:var]),",")
+   return "    return $outs\nend"
+end
+
+function toGen(g::OpenTermGraph,fname::String)
+   out = to_lines(g)
+   insert!(out,1,make_header(g,fname))
+   push!(out,make_footer(g))
    open("$fname.jl","w") do f
       write(f,join(out,"\n"))
    end

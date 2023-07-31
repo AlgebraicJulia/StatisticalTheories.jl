@@ -6,8 +6,8 @@ using ACSets
 import Catlab.BasicGraphs:vertices,nv,outneighbors
 export nv,vertices,outneighbors
 import Base.:+
-import Catlab.Theories:otimes,compose,dom,codom,id,mcopy
-export MarkovCats,FreeMarkovCategory,TermGraph,Open,OpenTermGraph,OpenTermGraphOb,Space,+,opentermgraph_edge,compose,otimes,dom,codom,id,mcopy
+import Catlab.Theories:otimes,compose,dom,codom,id,mcopy,mmerge
+export MarkovCats,FreeMarkovCategory,TermGraph,Open,OpenTermGraph,OpenTermGraphOb,Space,+,opentermgraph_edge,compose,otimes,dom,codom,id,mcopy,mmerge
 
 struct Space 
    name::Symbol
