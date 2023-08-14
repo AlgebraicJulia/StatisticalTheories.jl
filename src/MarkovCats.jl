@@ -6,8 +6,9 @@ using ACSets
 import Catlab.BasicGraphs:vertices,nv,outneighbors
 export nv,vertices,outneighbors
 import Base.:+
-import Catlab.Theories:otimes,compose,dom,codom,id,mcopy,mmerge
-export MarkovCats,FreeMarkovCategory,TermGraph,Open,OpenTermGraph,OpenTermGraphOb,Space,+,opentermgraph_edge,compose,otimes,dom,codom,id,mcopy,mmerge
+import Catlab.Theories:otimes,compose,dom,codom,id,mcopy,mmerge,delete,Ob,Hom
+export MarkovCats,FreeMarkovCategory,TermGraph,TermGraphUntyped,Open,OpenTermGraph,OpenTermGraphOb,OpenTermGraphUntyped,OpenTermGraphUntypedOb,Space,+,
+      opentermgraph_edge,compose,otimes,dom,codom,id,mcopy,mmerge,delete,SchTermGraph,Ob,Hom
 
 struct Space 
    name::Symbol
@@ -114,7 +115,7 @@ end
 @syntax FreeMarkovCategory{ObExpr,HomExpr} ThMonoidalCategoryWithBidiagonals begin
   otimes(A::Ob, B::Ob) = associate_unit(new(A,B), munit)
   otimes(f::Hom, g::Hom) = associate(new(f,g))
-  compose(f::Hom, g::Hom) = associate_unit(new(f,g; strict=true), id)
+  compose(f::Hom, g::Hom) = associate_unit(new(f,g; strict=false), id)
 end
 
 end

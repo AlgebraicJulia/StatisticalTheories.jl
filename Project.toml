@@ -7,6 +7,7 @@ version = "0.0.1"
 [deps]
 ACSets = "227ef7b5-1206-438b-ac65-934d6da304b8"
 Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
+Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
 Gen = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 

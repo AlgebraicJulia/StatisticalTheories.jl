@@ -57,9 +57,11 @@ function to_lines(g::OpenTermGraph)
    mainbody = reduce(append!,map(x->to_line(x,g),nondom))
 end
 
-function make_header(g::OpenTermGraph,name)
-   args = join(map(x->String(x.name),dom(g).ob[:var]),",")
-   return "using Gen\n@gen function $name($args)"
+function make_header(g::OpenTermGraph,name,priors)
+   argsyms = filter(x->!haskey(priors,x.name),dom(g).ob[:var])
+   args = join(map(x->String(x.name),argsyms),",")
+   priorstrings = ["    $(p.first) = $(p.second)" for p in pairs(priors)]
+   return ["using Gen\n@gen function $name($args)";priorstrings...]
 end
 
 function make_footer(g::OpenTermGraph)
@@ -67,9 +69,9 @@ function make_footer(g::OpenTermGraph)
    return "    return $outs\nend"
 end
 
-function toGen(g::OpenTermGraph,fname::String)
+function toGen(g::OpenTermGraph,fname::String,priors)
    out = to_lines(g)
-   insert!(out,1,make_header(g,fname))
+   prepend!(out,make_header(g,fname,priors))
    push!(out,make_footer(g))
    open("$fname.jl","w") do f
       write(f,join(out,"\n"))

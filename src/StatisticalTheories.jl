@@ -5,11 +5,13 @@ module StatisticalTheories
 include("PlateDiagrams.jl")
 include("MarkovCats.jl")
 include("ParseToGen.jl")
+include("Double.jl")
 
 using Reexport
 
 @reexport using .MarkovCats
 @reexport using .PlateDiagrams
 @reexport using .ParseToGen
+@reexport using .Double
 
 end
