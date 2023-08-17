@@ -14,6 +14,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 [compat]
 ACSets = "0.2"
 Catlab = "0.15"
+Debugger = "0.7"
 Gen = "0.4"
 Reexport = "1"
 julia = "1.9"
